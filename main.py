@@ -1,4 +1,5 @@
-from seleniumwire import webdriver  # Import seleniumwire
+from seleniumwire import webdriver  as selwire_driver 
+from selenium import webdriver as sel_driver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
@@ -9,10 +10,12 @@ import time
 import csv
 import io
 import gzip
+import os
+import re
 
 download_dir = "/Users/mian/ScrapedData/Google Rec/Scraped_Data"
 
-columns = ["audioId", "fileName Audio", "fileName Trans", "Location", "Duration", "Title", "Tags", "Date", "Latitude", "Longitude"]
+columns = ["audioId", "fileName Audio", "fileName Trans", "Location", "Duration", "Title", "Tags", "Date", "Time", "Latitude", "Longitude"]
 with open(f'{download_dir}/Metadata.csv', 'w', newline='') as csvfile:
     writer = csv.DictWriter(csvfile, fieldnames=columns)
     writer.writeheader()
@@ -30,63 +33,75 @@ options.add_experimental_option("prefs", {
     "safebrowsing.enabled": True
 })
 
-# Other potential optimizations
-# options.add_argument('--headless')  # Run in headless mode
-options.add_argument('--disable-gpu')  # Disable GPU hardware acceleration
-options.add_argument('--no-sandbox')  # Bypass OS security model
-options.add_argument('--disable-dev-shm-usage')  # Overcome limited resource problems
-options.add_argument('--disable-infobars')  # Disable infobars
-options.add_argument('--disable-extensions')  # Disable extensions
-options.add_argument('--disable-popup-blocking')  # Disable popup blocking
-options.add_argument('--disable-translate')  # Disable translation prompt
 
-# Configure selenium-wire
-seleniumwire_options = {
-    'disable_encoding': True , # Disable automatic encoding
-    'disable_capture' : True
-    # Add any other specific options you might need
-}
+
+selenium_driver = sel_driver.Chrome(
+     service=Service(ChromeDriverManager().install()), 
+    options=options,
+
+)
 
 # Initialize webdriver with selenium-wire and chrome options
-driver = webdriver.Chrome(
+selWiredriver= selwire_driver.Chrome(
     service=Service(ChromeDriverManager().install()), 
     options=options,
-    seleniumwire_options=seleniumwire_options
+
 )
 
 # Example of limiting request capture
-driver.scopes = [
+selWiredriver.scopes = [
     '.*pixelrecorder-pa.clients6.google.com.*'  # Only capture requests to the specific URL
 ]
 
 def SignIn():
     
     # email input
-    email_input = driver.find_element(By.TAG_NAME, "input")
+    email_input = selWiredriver.find_element(By.TAG_NAME, "input")
     email_input.send_keys("rita@mosaicdesignlabs.com")
     time.sleep(2)
 
-    next_btn = driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
+    next_btn = selWiredriver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
     next_btn.click()
     time.sleep(4)
 
     # password input
-    password_input = driver.find_element(By.NAME, "Passwd")
+    password_input = selWiredriver.find_element(By.NAME, "Passwd")
     password_input.send_keys("mosaictest123")
     time.sleep(2)
 
-    next_btn = driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
+    next_btn = selWiredriver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
+    next_btn.click()
+    time.sleep(4)
+    return
+
+def SignInSelenium():
+    
+    # email input
+    email_input = selenium_driver.find_element(By.TAG_NAME, "input")
+    email_input.send_keys("rita@mosaicdesignlabs.com")
+    time.sleep(2)
+
+    next_btn = selenium_driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
+    next_btn.click()
+    time.sleep(4)
+
+    # password input
+    password_input = selenium_driver.find_element(By.NAME, "Passwd")
+    password_input.send_keys("mosaictest123")
+    time.sleep(2)
+
+    next_btn = selenium_driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
     next_btn.click()
     time.sleep(4)
     return
 
 
-driver.get("https://www.google.com/")
+selWiredriver.get("https://www.google.com/")
 time.sleep(3)
 
 try:
     # SignIn Button click
-    signin_btn = driver.find_element(By.LINK_TEXT, "Sign in")
+    signin_btn = selWiredriver.find_element(By.LINK_TEXT, "Sign in")
     signin_btn.click()
     time.sleep(3)
     SignIn()
@@ -95,10 +110,10 @@ except Exception as e:
     print("Already SignIn")
     print(e)
 
-driver.get("https://recorder.google.com/")
+selWiredriver.get("https://recorder.google.com/")
 time.sleep(15)
 
-main_window_root = driver.find_element(By.TAG_NAME, "recorder-main").shadow_root
+main_window_root = selWiredriver.find_element(By.TAG_NAME, "recorder-main").shadow_root
 side_bar = main_window_root.find_element(By.CSS_SELECTOR, "recorder-sidebar")
 
 side_bar_root = side_bar.shadow_root
@@ -109,35 +124,76 @@ recorder_sidebar_items_root = recorder_sidebar_items.shadow_root
 
 rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
 
-section_scroll = recorder_sidebar_items_root.find_element(By.CSS_SELECTOR, "div.items > ul")
+section_scroll = recorder_sidebar_items_root.find_element(By.CSS_SELECTOR, "div.items > ul.library-list")
 
-item_1 = rec_items[0]
-item_1.click()
 
-# Get scroll height
-last_height = driver.execute_script("return arguments[0].scrollHeight", section_scroll)
+# infinit scroll new version
+# item_1 = rec_items[0]
+# item_1.click()
 
-while True:
-    # Scroll down
-    item_1.send_keys(Keys.PAGE_DOWN)
-    item_1.send_keys(Keys.PAGE_DOWN)
-    item_1.send_keys(Keys.PAGE_DOWN)
+# while True:
+#     # updated recording list
+#     rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
+
+#     last_rec_item = rec_items[len(rec_items)-1]
+#     recorder_sidebar_item_root = last_rec_item.find_element(By.CSS_SELECTOR, "recorder-sidebar-item").shadow_root
+#     recorder_metadata_root =  recorder_sidebar_item_root.find_element(By.CSS_SELECTOR, "recorder-metadata").shadow_root
     
-    # Wait for new audios to load
-    time.sleep(1)
-    
-    # Calculate new scroll height and compare with the last scroll height
-    new_height = driver.execute_script("return arguments[0].scrollHeight", section_scroll)
-    if new_height == last_height:
-        break
-    last_height = new_height
+#     # title
+#     title = recorder_metadata_root.find_element(By.CSS_SELECTOR, '.title-wrapper .title .rest').text
+#     print(f"title : {title}")
 
-print("scrolled")
+#     if title == "last":
+#         break
+
+#     for i in range(0,8):
+#          last_rec_item.send_keys(Keys.PAGE_DOWN)
+         
+#     time.sleep(5)
+
+
+
+
+#  old version infinite scroll
+if rec_items:
+    item_1 = rec_items[0]
+    item_1.click()
+
+    # Get initial scroll height
+    last_height = selWiredriver.execute_script("return arguments[0].scrollHeight", section_scroll)
+    print(f"Initial Height: {last_height}")
+
+    while True:
+       
+
+            rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
+
+            last_rec_item = rec_items[len(rec_items)-1]
+
+            for i in range(0,8):
+                last_rec_item.send_keys(Keys.PAGE_DOWN)
+        
+
+            # Wait for new items to load
+            time.sleep(5)
+
+        # Get new scroll height
+            new_height =  selWiredriver.execute_script("return arguments[0].scrollHeight", section_scroll)
+            print(f"New Height: {new_height}")
+
+            if new_height == last_height:
+                break
+
+            last_height = new_height
+
+    print("Scrolled to the bottom")
+else:
+    print("No items found to click.")
 
 server_audio_list = []
 
 # Tracing requests
-for request in driver.requests:
+for request in selWiredriver.requests:
     if "https://pixelrecorder-pa.clients6.google.com/$rpc/java.com.google.wireless.android.pixel.recorder.protos.PlaybackService/GetRecordingList" in request.url:
         # print("Request URL:", request.url)
         # print("Request Method:", request.method)
@@ -169,8 +225,7 @@ for request in driver.requests:
                     # print("                    ")
 
                     server_audio_list.append({"title" : title, "audioId" : audioId, "lat" : latitude, "long": longitude})
-                    print(server_audio_list)
-                    print(f"len : {len(server_audio_list)}")
+
 
                
         except json.JSONDecodeError as e:
@@ -181,8 +236,88 @@ for request in driver.requests:
 
         print("=" * 50)
 
+selWiredriver.quit()
+print("selenium Wire driver Ended - Now starting Selenium Driver")
+
+
+
+# selenium_driver Code Here
+
+selenium_driver.get("https://www.google.com/")
+time.sleep(3)
+
+try:
+    # SignIn Button click
+    signin_btn = selenium_driver.find_element(By.LINK_TEXT, "Sign in")
+    signin_btn.click()
+    time.sleep(3)
+    SignInSelenium()
+
+except Exception as e:
+    print("Already SignIn")
+    print(e)
+
+selenium_driver.get("https://recorder.google.com/")
+time.sleep(15)
+
+main_window_root = selenium_driver.find_element(By.TAG_NAME, "recorder-main").shadow_root
+side_bar = main_window_root.find_element(By.CSS_SELECTOR, "recorder-sidebar")
+
+side_bar_root = side_bar.shadow_root
+
+recorder_sidebar_items = side_bar_root.find_element(By.CSS_SELECTOR, "recorder-sidebar-items")
+recorder_sidebar_items_root = recorder_sidebar_items.shadow_root
+
 
 rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
+
+section_scroll = recorder_sidebar_items_root.find_element(By.CSS_SELECTOR, "div.items > ul.library-list")
+
+if rec_items:
+    item_1 = rec_items[0]
+    item_1.click()
+
+    # Get initial scroll height
+    last_height = selenium_driver.execute_script("return arguments[0].scrollHeight", section_scroll)
+    print(f"Initial Height: {last_height}")
+
+    while True:
+        # Scroll down
+        # driver.execute_script("arguments[0].scrollTop = arguments[0].scrollHeight", section_scroll)
+        # time.sleep(3)
+        rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
+
+        last_rec_item = rec_items[len(rec_items)-1]
+
+        for i in range(0,8):
+         last_rec_item.send_keys(Keys.PAGE_DOWN)
+        
+
+        # Wait for new items to load
+        time.sleep(5)
+
+        # Get new scroll height
+        new_height =  selenium_driver.execute_script("return arguments[0].scrollHeight", section_scroll)
+        print(f"New Height: {new_height}")
+
+        if new_height == last_height:
+            break
+
+        last_height = new_height
+
+    print("Scrolled to the bottom")
+else:
+    print("No items found to click.")
+
+# 
+
+rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
+
+print(f"length of server Audio List : {len(server_audio_list)}")
+
+
+print("List length returned by the selenium driver ")
+print(len(rec_items))
 
 counter = 0  # counter
 for item in rec_items:
@@ -209,13 +344,15 @@ for item in rec_items:
 
         try:
             print("Bot Closed Data already present")
-            driver.close()
+            selenium_driver.quit()
         except Exception as e:
+            selenium_driver.quit()
             print("Bot Closed Data already present")
 
     # Updating the LastScrapedRecord.csv file with the AudioId of last in the last(at top)
     if counter == len(server_audio_list) - 1:
         with open('LastScrapedRecord.csv', 'w') as csvfile:
+            print("Scraped Till the End")
             writer = csv.writer(csvfile)
             writer.writerow([server_audio_list[0]['audioId']])
 
@@ -223,13 +360,20 @@ for item in rec_items:
     print(counter)
 
     item.click()
-    time.sleep(2)
+    time.sleep(3)
     recorder_sidebar_item_root = item.find_element(By.CSS_SELECTOR, "recorder-sidebar-item").shadow_root
     recorder_metadata_root =  recorder_sidebar_item_root.find_element(By.CSS_SELECTOR, "recorder-metadata").shadow_root
     
     # title
     title = recorder_metadata_root.find_element(By.CSS_SELECTOR, '.title-wrapper .title .rest').text
     print(f"title : {title}")
+
+    # Time
+    match = re.search(r'\bat\s(\d{1,2}:\d{2}\s*[ap]m)\b', title, re.IGNORECASE)
+    if match:
+        audio_time = match.group(1)
+    else:
+       audio_time  = ""
 
     duration = recorder_metadata_root.find_element(By.CSS_SELECTOR, "span.duration").text
     print(f"Duration : {duration}")
@@ -252,11 +396,9 @@ for item in rec_items:
 
 
 
-    csv_data = [{"audioId" : server_audio_list[counter]['audioId'], "fileName Audio" : fileName, "fileName Trans" : fileName, "Location" : location, "Duration" : duration, "Title" : title, "Tags" : chip, "Date" : date, "Latitude" : server_audio_list[counter]['lat'], "Longitude" : server_audio_list[counter]['long']}]
-    
-    with open(f"{download_dir}/Metadata.csv", 'a', newline='') as csvfile:
-        writer = csv.DictWriter(csvfile, fieldnames=columns)
-        writer.writerows(csv_data)
+
+
+ 
 
     time.sleep(2)
     recorder_content = main_window_root.find_element(By.CSS_SELECTOR, "recorder-content")
@@ -280,7 +422,7 @@ for item in rec_items:
     mwc_menu = recorder_settings_root.find_element(By.CSS_SELECTOR, 'mwc-menu')
     # print(mwc_menu)
 
-    inner_html = driver.execute_script("return arguments[0].shadowRoot.innerHTML;", mwc_menu)
+    inner_html = selenium_driver.execute_script("return arguments[0].shadowRoot.innerHTML;", mwc_menu)
 
     download_btn = mwc_menu.find_element(By.CSS_SELECTOR, "mwc-list-item")
     download_btn.click()
@@ -291,13 +433,14 @@ for item in rec_items:
     audio_checkBox =  recorder_download_modal_root.find_element(By.CSS_SELECTOR, 'mwc-check-list-item[aria-label="Audio file (.m4a)"]')
     text_checkBox =  recorder_download_modal_root.find_element(By.CSS_SELECTOR, 'mwc-check-list-item[aria-label="Text file (.txt)"]')
     download_btn_main = recorder_download_modal_root.find_element(By.CSS_SELECTOR, "mwc-button.download")
+    cancel_btn = recorder_download_modal_root.find_element(By.CSS_SELECTOR, "mwc-button.cancel")
 
     # download_link = f"https://usercontent.recorder.google.com/download/playback/{server_audio_list[counter]['audioId']}?download=true"
-    counter = counter + 1
+    
     # print(download_link)
     # driver.get(download_link)
     time.sleep(1)
-    print("audi fine donaloaded")
+
 
     for i in range(0,2):
         if i == 1:
@@ -307,35 +450,69 @@ for item in rec_items:
             download_btn.click()
             time.sleep(1)
 
-            audio_checkBox.click()
+            try:
+
+
+                audio_checkBox.click()
+                time.sleep(1)
+
+                text_checkBox.click()
+                time.sleep(1)
+
+                download_btn_main.click()
+                time.sleep(1)
+                
+            except:
+                cancel_btn.click()
+                continue
+                
+
+
+        if i == 0:
             time.sleep(1)
+            download_btn_main.click()
+            time.sleep(5)
+            most_recent_file = None
+            most_recent_time = 0
+            # iterate over the files in the directory using os.scandir
+            for entry in os.scandir(download_dir):
+                if entry.is_file():
+                    # get the modification time of the file using entry.stat().st_mtime_ns
+                    mod_time = entry.stat().st_mtime_ns
+                    if mod_time > most_recent_time:
+                        # update the most recent file and its modification time
+                        most_recent_audiofile = entry.name
+                        most_recent_time = mod_time
 
-            text_checkBox.click()
-            time.sleep(1)
-
-        
-        time.sleep(1)
-        download_btn_main.click()
-        time.sleep(1)
-
-    # time.sleep(5)
-
-print(len(rec_items))
-
-# inner_html = driver.execute_script("return arguments[0].outerHTML;", rec_items)
-# print("printing")
-# print(inner_html)
-# print(html)
-# print(Main_window.text)
+    print(f"Most Recent File : {most_recent_file}")
 
 
+    time.sleep(3)
+    most_recent_file = None
+    most_recent_time = 0
+
+    # iterate over the files in the directory using os.scandir
+    for entry in os.scandir(download_dir):
+        if entry.is_file():
+            # get the modification time of the file using entry.stat().st_mtime_ns
+            mod_time = entry.stat().st_mtime_ns
+            if mod_time > most_recent_time:
+                # update the most recent file and its modification time
+                most_recent_transfile = entry.name
+                most_recent_time = mod_time
+
+    print(f"Most Recent File : {most_recent_file}")
+
+    csv_data = [{"audioId" : server_audio_list[counter]['audioId'], "fileName Audio" : most_recent_audiofile, "fileName Trans" : most_recent_transfile, "Location" : location, "Duration" : duration, "Title" : title, "Tags" : chip, "Date" : date, "Time" : audio_time, "Latitude" : server_audio_list[counter]['lat'], "Longitude" : server_audio_list[counter]['long']}]
+    
+    with open(f"{download_dir}/Metadata.csv", 'a', newline='') as csvfile:
+        writer = csv.DictWriter(csvfile, fieldnames=columns)
+        writer.writerows(csv_data)
+
+    counter = counter + 1
+
+    
 
 
-time.sleep(100000)
 
-
-
-# Perform your tasks...
-
-# Close the browser
-driver.quit()
+selenium_driver.quit()
