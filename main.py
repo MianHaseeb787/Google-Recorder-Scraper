@@ -5,6 +5,9 @@ from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
 import json
 import time
 import csv
@@ -13,7 +16,11 @@ import gzip
 import os
 import re
 
+
+# Change Download Directory, Email & Password here
 download_dir = "/Users/mian/ScrapedData/Google Rec/Scraped_Data"
+email = "rita@mosaicdesignlabs.com"
+password = "mosaictest123"
 
 columns = ["audioId", "fileName Audio", "fileName Trans", "Location", "Duration", "Title", "Tags", "Date", "Time", "Latitude", "Longitude"]
 with open(f'{download_dir}/Metadata.csv', 'w', newline='') as csvfile:
@@ -21,7 +28,7 @@ with open(f'{download_dir}/Metadata.csv', 'w', newline='') as csvfile:
     writer.writeheader()
     print("CSV file created successfully.")
 
-# Initialize Chrome options
+
 options = Options()
 
 # Set download directory preferences
@@ -41,23 +48,23 @@ selenium_driver = sel_driver.Chrome(
 
 )
 
-# Initialize webdriver with selenium-wire and chrome options
+
 selWiredriver= selwire_driver.Chrome(
     service=Service(ChromeDriverManager().install()), 
     options=options,
 
 )
 
-# Example of limiting request capture
+
 selWiredriver.scopes = [
-    '.*pixelrecorder-pa.clients6.google.com.*'  # Only capture requests to the specific URL
+    '.*pixelrecorder-pa.clients6.google.com.*'  
 ]
 
 def SignIn():
     
     # email input
     email_input = selWiredriver.find_element(By.TAG_NAME, "input")
-    email_input.send_keys("rita@mosaicdesignlabs.com")
+    email_input.send_keys(email)
     time.sleep(2)
 
     next_btn = selWiredriver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
@@ -66,7 +73,7 @@ def SignIn():
 
     # password input
     password_input = selWiredriver.find_element(By.NAME, "Passwd")
-    password_input.send_keys("mosaictest123")
+    password_input.send_keys(password)
     time.sleep(2)
 
     next_btn = selWiredriver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
@@ -78,7 +85,7 @@ def SignInSelenium():
     
     # email input
     email_input = selenium_driver.find_element(By.TAG_NAME, "input")
-    email_input.send_keys("rita@mosaicdesignlabs.com")
+    email_input.send_keys(email)
     time.sleep(2)
 
     next_btn = selenium_driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
@@ -87,7 +94,7 @@ def SignInSelenium():
 
     # password input
     password_input = selenium_driver.find_element(By.NAME, "Passwd")
-    password_input.send_keys("mosaictest123")
+    password_input.send_keys(password)
     time.sleep(2)
 
     next_btn = selenium_driver.find_element(By.XPATH, "//span[contains(text(), 'Next')]")
@@ -159,10 +166,9 @@ if rec_items:
     item_1 = rec_items[0]
     item_1.click()
 
-    # Get initial scroll height
+ 
     last_height = selWiredriver.execute_script("return arguments[0].scrollHeight", section_scroll)
-    print(f"Initial Height: {last_height}")
-
+    
     while True:
        
 
@@ -172,14 +178,10 @@ if rec_items:
 
             for i in range(0,8):
                 last_rec_item.send_keys(Keys.PAGE_DOWN)
-        
-
-            # Wait for new items to load
             time.sleep(5)
 
-        # Get new scroll height
             new_height =  selWiredriver.execute_script("return arguments[0].scrollHeight", section_scroll)
-            print(f"New Height: {new_height}")
+            
 
             if new_height == last_height:
                 break
@@ -198,7 +200,7 @@ for request in selWiredriver.requests:
         # print("Request URL:", request.url)
         # print("Request Method:", request.method)
         # print("Request Headers:", request.headers)
-        print("Request Response Body:")
+
 
         try:
             if request.response.body:
@@ -279,7 +281,7 @@ if rec_items:
 
     # Get initial scroll height
     last_height = selenium_driver.execute_script("return arguments[0].scrollHeight", section_scroll)
-    print(f"Initial Height: {last_height}")
+    
 
     while True:
         # Scroll down
@@ -298,7 +300,7 @@ if rec_items:
 
         # Get new scroll height
         new_height =  selenium_driver.execute_script("return arguments[0].scrollHeight", section_scroll)
-        print(f"New Height: {new_height}")
+        
 
         if new_height == last_height:
             break
@@ -314,8 +316,6 @@ else:
 rec_items = recorder_sidebar_items_root.find_elements(By.CSS_SELECTOR, "div.items > ul > div.item")
 
 print(f"length of server Audio List : {len(server_audio_list)}")
-
-
 print("List length returned by the selenium driver ")
 print(len(rec_items))
 
@@ -333,7 +333,7 @@ for item in rec_items:
             first_col_data = first_row[0]
         except Exception as e:
             first_col_data = ""
-        print(f"Last Stored Audio Id : {first_col_data} ")
+        print(f"Last Run Stored Audio Id : {first_col_data} ")
 
     if server_audio_list[counter]['audioId'] == first_col_data:
         print("Reaced")
@@ -361,6 +361,9 @@ for item in rec_items:
 
     item.click()
     time.sleep(3)
+    
+
+
     recorder_sidebar_item_root = item.find_element(By.CSS_SELECTOR, "recorder-sidebar-item").shadow_root
     recorder_metadata_root =  recorder_sidebar_item_root.find_element(By.CSS_SELECTOR, "recorder-metadata").shadow_root
     
@@ -390,17 +393,11 @@ for item in rec_items:
     
     except Exception as e:
         chip = ""
-        print("not Favouited")
+
 
     fileName = title.replace(":", "-")
-
-
-
-
-
- 
-
-    time.sleep(2)
+    time.sleep(4)
+    
     recorder_content = main_window_root.find_element(By.CSS_SELECTOR, "recorder-content")
     recorder_content_root = recorder_content.shadow_root
 
@@ -472,6 +469,7 @@ for item in rec_items:
             time.sleep(1)
             download_btn_main.click()
             time.sleep(5)
+
             most_recent_file = None
             most_recent_time = 0
             # iterate over the files in the directory using os.scandir
@@ -484,7 +482,7 @@ for item in rec_items:
                         most_recent_audiofile = entry.name
                         most_recent_time = mod_time
 
-    print(f"Most Recent File : {most_recent_file}")
+    print(f"Most Recent Audio File : {most_recent_audiofile}")
 
 
     time.sleep(3)
@@ -501,7 +499,7 @@ for item in rec_items:
                 most_recent_transfile = entry.name
                 most_recent_time = mod_time
 
-    print(f"Most Recent File : {most_recent_file}")
+    print(f"Most Recent Transcript File : {most_recent_transfile}")
 
     csv_data = [{"audioId" : server_audio_list[counter]['audioId'], "fileName Audio" : most_recent_audiofile, "fileName Trans" : most_recent_transfile, "Location" : location, "Duration" : duration, "Title" : title, "Tags" : chip, "Date" : date, "Time" : audio_time, "Latitude" : server_audio_list[counter]['lat'], "Longitude" : server_audio_list[counter]['long']}]
     
