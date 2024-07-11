@@ -1,5 +1,7 @@
-from seleniumwire import webdriver  as selwire_driver 
-from selenium import webdriver as sel_driver
+import seleniumwire.undetected_chromedriver as selwire_driver
+import undetected_chromedriver as sel_driver
+# from seleniumwire import webdriver  as selwire_driver 
+# from selenium import webdriver as sel_driver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.options import Options
@@ -29,7 +31,7 @@ with open(f'{download_dir}/Metadata.csv', 'w', newline='') as csvfile:
     print("CSV file created successfully.")
 
 
-options = Options()
+options = sel_driver.ChromeOptions()
 
 # Set download directory preferences
 options.add_experimental_option("prefs", {
@@ -40,6 +42,9 @@ options.add_experimental_option("prefs", {
     "safebrowsing.enabled": True
 })
 
+options.add_argument('--ignore-ssl-errors=yes')
+options.add_argument('--ignore-certificate-errors')
+
 
 
 selenium_driver = sel_driver.Chrome(
@@ -48,12 +53,25 @@ selenium_driver = sel_driver.Chrome(
 
 )
 
+selWire_options = selwire_driver.ChromeOptions()
+selWire_options.add_argument('--ignore-ssl-errors=yes')
+selWire_options.add_argument('--ignore-certificate-errors')
+selWire_options.add_experimental_option("prefs", {
+    "download.default_directory": download_dir,
+    "savefile.default_directory": download_dir,
+    "download.prompt_for_download": False,  
+    "download.directory_upgrade": True,
+    "safebrowsing.enabled": True
+})
 
 selWiredriver= selwire_driver.Chrome(
     service=Service(ChromeDriverManager().install()), 
-    options=options,
+    options=selWire_options,
 
 )
+
+selWiredriver.maximize_window()
+selenium_driver.maximize_window()
 
 
 selWiredriver.scopes = [
@@ -102,7 +120,31 @@ def SignInSelenium():
     time.sleep(4)
     return
 
+def parse_duration(duration):
+    # Check if duration contains hours
+    if len(duration.split(":")) == 3:
+        # Format is HH:MM:SS
+        hours, minutes, seconds = map(int, duration.split(":"))
+        total_seconds = 35
+    else:
+        # Format is MM:SS
+        minutes, seconds = map(int, duration.split(":"))
+        print(f"Minutes  : {minutes}")
+        if minutes > 0:
+            if minutes > 30:
+                total_seconds = 30
+            else:
+                total_seconds = 20
 
+        else:
+            if seconds > 30:
+                total_seconds  = 10
+            else:
+                total_seconds = 8
+    
+    return total_seconds
+
+# selWiredriver.minimize_window()
 selWiredriver.get("https://www.google.com/")
 time.sleep(3)
 
@@ -240,7 +282,7 @@ for request in selWiredriver.requests:
 
 selWiredriver.quit()
 print("selenium Wire driver Ended - Now starting Selenium Driver")
-
+# selenium_driver.minimize_window()
 
 
 # selenium_driver Code Here
@@ -345,16 +387,13 @@ for item in rec_items:
         try:
             print("Bot Closed Data already present")
             selenium_driver.quit()
+            break
         except Exception as e:
             selenium_driver.quit()
             print("Bot Closed Data already present")
+            break
 
-    # Updating the LastScrapedRecord.csv file with the AudioId of last in the last(at top)
-    if counter == len(server_audio_list) - 1:
-        with open('LastScrapedRecord.csv', 'w') as csvfile:
-            print("Scraped Till the End")
-            writer = csv.writer(csvfile)
-            writer.writerow([server_audio_list[0]['audioId']])
+
 
     print("counter")
     print(counter)
@@ -467,8 +506,13 @@ for item in rec_items:
 
         if i == 0:
             time.sleep(1)
+            try:
+                download_waiting_time = parse_duration(duration)
+            except:
+                download_waiting_time = 8
+            print(f"Download waiting time : {download_waiting_time}")
             download_btn_main.click()
-            time.sleep(5)
+            time.sleep(download_waiting_time)
 
             most_recent_file = None
             most_recent_time = 0
@@ -507,7 +551,17 @@ for item in rec_items:
         writer = csv.DictWriter(csvfile, fieldnames=columns)
         writer.writerows(csv_data)
 
+
+
     counter = counter + 1
+
+     # Updating the LastScrapedRecord.csv file with the AudioId of last in the last(at top)
+    if counter == len(server_audio_list):
+        with open('LastScrapedRecord.csv', 'w') as csvfile:
+            print("Scraped Till the End")
+            writer = csv.writer(csvfile)
+            writer.writerow([server_audio_list[0]['audioId']])
+            break
 
     
 
